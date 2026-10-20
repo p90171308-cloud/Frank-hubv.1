@@ -1,0 +1,259 @@
+-- [[ FA Hub - Universal UI Script with Discord Webhook ]] --
+
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+-- 📌 1. Webhook Configuration
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1558080999038918680/0qXXJLbttTw50-w6i1pRlpkjN3CIg9tLIr2P1X5gi-DLTU9aAePM0PZIbFvWHfy36tld"
+
+local function sendWebhookNotification()
+    if WEBHOOK_URL == "" then return end
+    local httpRequest = (syn and syn.request) or (http and http.request) or http_request or request
+    if httpRequest then
+        local data = {
+            ["embeds"] = {{
+                ["title"] = "🚀 FA Hub Executed Successfully!",
+                ["color"] = 65280,
+                ["fields"] = {
+                    { ["name"] = "👤 Player", ["value"] = LocalPlayer.Name .. " (" .. LocalPlayer.DisplayName .. ")", ["inline"] = true },
+                    { ["name"] = "🆔 User ID", ["value"] = tostring(LocalPlayer.UserId), ["inline"] = true },
+                    { ["name"] = "🎮 Place ID", ["value"] = tostring(game.PlaceId), ["inline"] = true },
+                    { ["name"] = "🔗 Profile Link", ["value"] = "https://www.roblox.com/users/" .. LocalPlayer.UserId .. "/profile", ["inline"] = false }
+                },
+                ["footer"] = { ["text"] = "FA Hub System • " .. os.date("%Y-%m-%d %H:%M:%S") }
+            }}
+        }
+        pcall(function()
+            httpRequest({
+                Url = WEBHOOK_URL,
+                Method = "POST",
+                Headers = { ["Content-Type"] = "application/json" },
+                Body = HttpService:JSONEncode(data)
+            })
+        end)
+    end
+end
+
+-- ยิง Webhook ทันทีที่รัน
+task.spawn(sendWebhookNotification)
+
+-- 📌 2. Stat Control Variables
+local currentSpeed = 16
+local currentJump = 50
+
+local function applyStats(character)
+    local humanoid = character:WaitForChild("Humanoid", 10)
+    if not humanoid then return end
+
+    humanoid.WalkSpeed = currentSpeed
+    humanoid.UseJumpPower = true
+    humanoid.JumpPower = currentJump
+
+    -- Bypass/Anti-reset ของแมพ
+    humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+        if humanoid.WalkSpeed ~= currentSpeed then
+            humanoid.WalkSpeed = currentSpeed
+        end
+    end)
+    humanoid:GetPropertyChangedSignal("JumpPower"):Connect(function()
+        if humanoid.JumpPower ~= currentJump then
+            humanoid.JumpPower = currentJump
+        end
+    end)
+end
+
+if LocalPlayer.Character then applyStats(LocalPlayer.Character) end
+LocalPlayer.CharacterAdded:Connect(applyStats)
+
+-- 📌 3. GUI Construction (FA Hub UI)
+local CoreGui = game:GetService("CoreGui")
+if CoreGui:FindFirstChild("FAHubUI") then
+    CoreGui.FAHubUI:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "FAHubUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = (gethui and gethui()) or CoreGui
+
+-- Main Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 320, 0, 260)
+MainFrame.Position = UDim2.new(0.5, -160, 0.4, -130)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Parent = ScreenGui
+
+local MainUICorner = Instance.new("UICorner")
+MainUICorner.CornerRadius = UDim.new(0, 10)
+MainUICorner.Parent = MainFrame
+
+local MainUIStroke = Instance.new("UIStroke")
+MainUIStroke.Color = Color3.fromRGB(0, 170, 255)
+MainUIStroke.Thickness = 2
+MainUIStroke.Parent = MainFrame
+
+-- Top Bar (Title & Draggable)
+local TopBar = Instance.new("Frame")
+TopBar.Name = "TopBar"
+TopBar.Size = UDim2.new(1, 0, 0, 35)
+TopBar.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+TopBar.BorderSizePixel = 0
+TopBar.Parent = MainFrame
+
+local TopBarCorner = Instance.new("UICorner")
+TopBarCorner.CornerRadius = UDim.new(0, 10)
+TopBarCorner.Parent = TopBar
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -40, 1, 0)
+Title.Position = UDim2.new(0, 12, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "⚡ FA HUB • UNIVERSAL"
+Title.TextColor3 = Color3.fromRGB(0, 170, 255)
+Title.TextSize = 15
+Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = TopBar
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 25, 0, 25)
+CloseBtn.Position = UDim2.new(1, -30, 0, 5)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 14
+CloseBtn.Parent = TopBar
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 6)
+CloseCorner.Parent = CloseBtn
+
+-- Content Container
+local Container = Instance.new("Frame")
+Container.Size = UDim2.new(1, -20, 1, -50)
+Container.Position = UDim2.new(0, 10, 0, 42)
+Container.BackgroundTransparency = 1
+Container.Parent = MainFrame
+
+-- ฟังก์ชันสร้างช่องใส่ตัวเลข (Number Input Box)
+local function createInputControl(parent, labelText, defaultVal, posY, onValueChange)
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(1, 0, 0, 20)
+    Label.Position = UDim2.new(0, 0, 0, posY)
+    Label.BackgroundTransparency = 1
+    Label.Text = labelText
+    Label.TextColor3 = Color3.fromRGB(200, 200, 200)
+    Label.TextSize = 13
+    Label.Font = Enum.Font.GothamMedium
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Parent = parent
+
+    local Box = Instance.new("TextBox")
+    Box.Size = UDim2.new(1, 0, 0, 32)
+    Box.Position = UDim2.new(0, 0, 0, posY + 22)
+    Box.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+    Box.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Box.Text = tostring(defaultVal)
+    Box.PlaceholderText = "ใส่ตัวเลขตรงนี้..."
+    Box.TextSize = 14
+    Box.Font = Enum.Font.GothamBold
+    Box.Parent = parent
+
+    local BoxCorner = Instance.new("UICorner")
+    BoxCorner.CornerRadius = UDim.new(0, 6)
+    BoxCorner.Parent = Box
+
+    local BoxStroke = Instance.new("UIStroke")
+    BoxStroke.Color = Color3.fromRGB(0, 170, 255)
+    BoxStroke.Thickness = 1
+    BoxStroke.Parent = Box
+
+    -- ทำงานเมื่อกด Enter หรือกดออกจากช่องพิมพ์
+    Box.FocusLost:Connect(function()
+        local num = tonumber(Box.Text)
+        if num then
+            onValueChange(num)
+        else
+            Box.Text = tostring(defaultVal)
+        end
+    end)
+end
+
+-- 1. ช่องใส่เลขความเร็ว (WalkSpeed)
+createInputControl(Container, "🏃 Speed (ใส่ตัวเลขความเร็ววิ่ง):", currentSpeed, 0, function(val)
+    currentSpeed = val
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = val
+    end
+end)
+
+-- 2. ช่องใส่เลขระยะกระโดด (JumpPower)
+createInputControl(Container, "🚀 Jump Power (ใส่ตัวเลขระยะกระโดด):", currentJump, 65, function(val)
+    currentJump = val
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.UseJumpPower = true
+        LocalPlayer.Character.Humanoid.JumpPower = val
+    end
+end)
+
+-- แนะนำปุ่มเปิด-ปิด
+local TipLabel = Instance.new("TextLabel")
+TipLabel.Size = UDim2.new(1, 0, 0, 20)
+TipLabel.Position = UDim2.new(0, 0, 1, -22)
+TipLabel.BackgroundTransparency = 1
+TipLabel.Text = "💡 กดปุ่ม [ RightControl ] เพื่อเปิด-ปิด UI"
+TipLabel.TextColor3 = Color3.fromRGB(120, 120, 150)
+TipLabel.TextSize = 11
+TipLabel.Font = Enum.Font.Gotham
+TipLabel.Parent = Container
+
+-- 📌 4. Toggle UI & Dragging System
+local function toggleUI()
+    MainFrame.Visible = not MainFrame.Visible
+end
+
+CloseBtn.MouseButton1Click:Connect(toggleUI)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.RightControl then
+        toggleUI()
+    end
+end)
+
+-- ระบบลากหน้าต่าง (Drag)
+local dragging, dragInput, dragStart, startPos
+
+TopBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+TopBar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+print("FA Hub UI Loaded Successfully!")
